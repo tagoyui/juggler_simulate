@@ -1,11 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import * as d3 from "d3";
 //import * as d3 from "d3";
 
 export default function App() {
-  const [CountGame, setCountGame] = useState(0); //G数
+  const [CountGame, setCountGame] = useState(0);
+  const CountGameRef = useRef(0); //G数
   const [Flags, setFlags] = useState([...Array(CountGame)]); //フラグ
   const settingcount = 6; //設定は6段階
   const [Setteing, setSetting] = useState(1); //設定
@@ -29,6 +30,7 @@ export default function App() {
   ]; //単独BIG
   const [A_C_Big_P, setA_C_Big_P] = useState(ExisitiongA_C_Big_P[0]);
 
+  // 差枚
   var number = 0;
   const Diff_N = Flags.map((value) => {
     if (1 / Replay_P > value) {
@@ -87,15 +89,17 @@ export default function App() {
 
   const width = 800,
     height = 600;
-  const chartx = 0,
-    charty = 0,
-    chartw = 400,
-    charth = 400;
+  const chartx = 100,
+    charty = 100,
+    chartw = 700,
+    charth = 500;
+
   const xScale = d3
     .scaleLinear()
-    .domain(d3.extent()) //aaaaaaaaaaaaa
+    .domain([0, CountGame])
     .range([chartx, chartw])
     .nice();
+
   const yScale = d3
     .scaleLinear()
     .domain(d3.extent(Diff_N))
@@ -145,7 +149,7 @@ export default function App() {
               type="number"
               name="Replay_P"
               value={Replay_P}
-              onChage={(event) => {
+              onChange={(event) => {
                 setReplay_P(event.target.value);
               }}
             ></input>
@@ -245,12 +249,13 @@ export default function App() {
             {/* G数選択 */}
             <label>Count Game</label>
             <input
+              ref={CountGameRef}
               type="number"
               name="Count Game"
               defaultValue="0"
-              onChangeCapture={(event) => {
-                setCountGame(event.target.value);
-              }}
+              // onChangeCapture={(event) => {
+              //   setCountGame(event.target.value);
+              // }}
             ></input>
           </div>
         </div>
@@ -259,12 +264,12 @@ export default function App() {
         <div>
           <button
             onClick={(event) => {
-              const newFlag = [];
-              for (let i = 0; i < CountGame; i++) {
+              const newFlag = [0];
+              for (let i = 0; i < CountGameRef.current.value; i++) {
                 newFlag.push(Math.random());
               }
               setFlags(newFlag);
-              console.log(xScale);
+              setCountGame(CountGameRef.current.value);
             }}
           >
             Push
@@ -298,7 +303,7 @@ export default function App() {
                     fontSize="12"
                     textAnchor="middle"
                     x={xScale(xTick)}
-                    y={charth + 10}
+                    y={charth + 25}
                   >
                     {xTick}
                   </text>
@@ -307,7 +312,61 @@ export default function App() {
             })}
           </g>
         </g>
-        <circle cx="200" cy="200" r={CountGame / 20} fill="RED" />
+
+        {/* y軸 */}
+        <g>
+          <line
+            x1={chartx}
+            x2={chartx}
+            y1={charty}
+            y2={charth}
+            stroke="black"
+          />
+          {/* y軸目盛 */}
+          <g>
+            {yTicks.map((yTick) => {
+              return (
+                <g key={yTick}>
+                  <line
+                    x1={chartx - 10}
+                    x2={chartx}
+                    y1={yScale(yTick)}
+                    y2={yScale(yTick)}
+                    stroke="black"
+                  ></line>
+                  <text
+                    fontSize="12"
+                    dominantBaseline="middle"
+                    textAnchor="end"
+                    x={chartx - 20}
+                    y={yScale(yTick)}
+                  >
+                    {yTick}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        </g>
+
+        {/* コンテンツ */}
+        <g>
+          {console.log(Diff_N)}
+          {Diff_N.map((value, index) => {
+            if (index < CountGame) {
+              return (
+                <line
+                  key={index}
+                  x1={xScale(index)}
+                  x2={xScale(index + 1)}
+                  y1={yScale(value)}
+                  y2={yScale(Diff_N[index + 1])}
+                  stroke="black"
+                />
+              );
+            }
+          })}
+        </g>
       </svg>
     </div>
   );
