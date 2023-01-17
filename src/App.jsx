@@ -27,7 +27,6 @@ function HistgramAxis(props) {
   const yTicks = yScale.ticks();
 
   const Xextent = d3.extent(diffdata);
-  console.log(Xextent);
   const haba = (Xextent[1] - Xextent[0]) / 31;
   const xAxis = [];
   for (let i = 0; i < 31; i++) {
@@ -43,8 +42,6 @@ function HistgramAxis(props) {
     .range([chartx, chartw])
     .paddingInner(0)
     .paddingOuter(0);
-
-  console.log();
 
   if (gref == null) {
     return <g></g>;
@@ -108,7 +105,6 @@ function HistgramAxis(props) {
 
 function DrawHistogram(props) {
   const { bindata, diffdata, chartsize } = props;
-  console.log(diffdata);
   const { chartx, charty, chartw, charth } = chartsize;
   const binWidth = (chartw - chartx) / bindata.length;
   const binmax = Math.max(...bindata);
@@ -123,7 +119,7 @@ function DrawHistogram(props) {
         const binHeight = ((charth - charty) * value) / binmax;
         return (
           <g key={index}>
-            <text>{value}</text>
+            <title>{value}</title>
             <rect
               id="bin"
               x={chartx + binWidth * index}
@@ -187,31 +183,26 @@ function App() {
   // 差枚
   var number = 0;
 
-  var BBcount = 0;
-  var RBcount = 0;
-  var grapecount = 0;
-  var cherrycount = 0;
-
   //1ゲームの差枚を計算する関数
-  const onegame = (value) => {
+  const onegame = (value, counts) => {
     if (1 / Replay_P > value) {
     } else if (1 / Replay_P + 1 / Grapes_P > value) {
-      grapecount++;
+      counts.gp++;
       return (number += 5);
     } else if (1 / Replay_P + 1 / Grapes_P + 1 / Cherry_P > value) {
-      cherrycount++;
+      counts.cr++;
       return (number -= 1);
     } else if (
       1 / Replay_P + 1 / Grapes_P + 1 / Cherry_P + 1 / A_Big_P >
       value
     ) {
-      BBcount++;
+      counts.BB++;
       return (number += 236);
     } else if (
       1 / Replay_P + 1 / Grapes_P + 1 / Cherry_P + 1 / A_Big_P + 1 / A_Reg_P >
       value
     ) {
-      RBcount++;
+      counts.RB++;
       return (number += 92);
     } else if (
       1 / Replay_P +
@@ -222,7 +213,7 @@ function App() {
         1 / C_Big_P >
       value
     ) {
-      BBcount++;
+      counts.BB++;
       number += 238;
     } else if (
       1 / Replay_P +
@@ -234,7 +225,7 @@ function App() {
         1 / C_Reg_P >
       value
     ) {
-      RBcount++;
+      counts.RB++;
       number += 94;
     } else if (
       1 / Replay_P +
@@ -247,7 +238,7 @@ function App() {
         1 / A_C_Big_P >
       value
     ) {
-      BBcount++;
+      counts.BB++;
       number += 237;
     } else {
       number -= 3;
@@ -264,17 +255,28 @@ function App() {
     return newFlag;
   };
 
-  const [Diff_N, setDiff_N] = useState([0]);
+  const [Diff_N, setDiff_N] = useState({
+    data: [0],
+    counts: {
+      BB: 0,
+      RB: 0,
+      gp: 0,
+      cr: 0,
+    },
+  });
 
   const creatDiff_N = () => {
     number = 0;
-    return creatFlag().map((value) => onegame(value));
+    const counts = { BB: 0, RB: 0, gp: 0, cr: 0 };
+    const data = creatFlag().map((value) => onegame(value, counts));
+
+    return { data, counts };
   };
 
   const [CountTry, setCountTry] = useState([...Array(100)]); //試行回数＝CoumtTryの要素数
 
   const difference_calc = () => {
-    return creatDiff_N()[CountGameRef.current.value];
+    return creatDiff_N().data[CountGameRef.current.value];
   };
 
   const [difference, setdifference] = useState([1]);
@@ -296,7 +298,7 @@ function App() {
 
   const yScale = d3
     .scaleLinear()
-    .domain(d3.extent(Diff_N))
+    .domain(d3.extent(Diff_N.data))
     .range([charth, charty])
     .nice();
 
@@ -534,7 +536,7 @@ function App() {
                 onClick={() => {
                   setCountGame(CountGameRef.current.value);
                   setDiff_N(creatDiff_N());
-                  //
+                  console.log(creatDiff_N());
                 }}
               />
             </g>
@@ -618,7 +620,7 @@ function App() {
             </g>
             {/* コンテンツ */}
             <g>
-              {Diff_N.map((value, index) => {
+              {Diff_N.data.map((value, index) => {
                 if (index === 0) {
                   return (
                     <g key={index}>
@@ -643,7 +645,7 @@ function App() {
                 ${yScale(value)}
                 L
                 ${xScale(index + 1)}
-                ${yScale(Diff_N[index + 1])}`}
+                ${yScale(Diff_N.data[index + 1])}`}
                         />
                       </path>
                     </g>
@@ -673,7 +675,7 @@ function App() {
                 ${yScale(value)}
                 L
                 ${xScale(index + 1)}
-                ${yScale(Diff_N[index + 1])}`}
+                ${yScale(Diff_N.data[index + 1])}`}
                         />
                         <set
                           attributeName="d"
@@ -698,18 +700,18 @@ function App() {
                   <td>チェリー</td>
                 </tr>
                 <tr>
-                  <td> {`${BBcount + RBcount}`}</td>
-                  <td>{`${BBcount}`}</td>
-                  <td>{`${RBcount}`}</td>
-                  <td>{`${grapecount}`}</td>
-                  <td>{`${cherrycount}`}</td>
+                  <td> {`${Diff_N.counts.BB + Diff_N.counts.RB}`}</td>
+                  <td>{`${Diff_N.counts.BB}`}</td>
+                  <td>{`${Diff_N.counts.RB}`}</td>
+                  <td>{`${Diff_N.counts.gp}`}</td>
+                  <td>{`${Diff_N.counts.cr}`}</td>
                 </tr>
                 <tr>
-                  <td> {`${P_text(BBcount + RBcount)}`}</td>
-                  <td>{`${P_text(BBcount)}`}</td>
-                  <td>{`${P_text(RBcount)}`}</td>
-                  <td>{`${P_text(grapecount)}`}</td>
-                  <td>{`${P_text(cherrycount)}`}</td>
+                  <td> {`${P_text(Diff_N.counts.BB + Diff_N.counts.RB)}`}</td>
+                  <td>{`${P_text(Diff_N.counts.BB)}`}</td>
+                  <td>{`${P_text(Diff_N.counts.RB)}`}</td>
+                  <td>{`${P_text(Diff_N.counts.gp)}`}</td>
+                  <td>{`${P_text(Diff_N.counts.cr)}`}</td>
                 </tr>
               </thead>
             </table>
