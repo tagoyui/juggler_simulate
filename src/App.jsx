@@ -3,11 +3,166 @@ import ReactDOM from "react-dom";
 import { useState, useRef } from "react";
 import * as d3 from "d3";
 
-export default function App() {
-  const [CountGame, setCountGame] = useState(10);
-  const CountGameRef = useRef(10); //G数
+function Header() {
+  return (
+    <header className="hero is-dark is-blod">
+      <div className="hero-body">
+        <div className="container">
+          <h1 className="title">juggler simulate</h1>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function HistgramAxis(props) {
+  const gref = useRef(null);
+  const { bindata, diffdata, chartsize } = props;
+  const { chartx, charty, chartw, charth } = chartsize;
+  const yScale = d3
+    .scaleLinear()
+    .domain(d3.extent(bindata))
+    .range([charth, charty])
+    .nice();
+  const yTicks = yScale.ticks();
+
+  const Xextent = d3.extent(diffdata);
+  console.log(Xextent);
+  const haba = (Xextent[1] - Xextent[0]) / 31;
+  const xAxis = [];
+  for (let i = 0; i < 31; i++) {
+    xAxis.push(
+      Math.trunc(Xextent[0] + i * haba) +
+        " ~ " +
+        Math.trunc(Xextent[0] + (i + 1) * haba)
+    );
+  }
+  const xScale = d3
+    .scaleBand()
+    .domain(xAxis)
+    .range([chartx, chartw])
+    .paddingInner(0)
+    .paddingOuter(0);
+
+  console.log();
+
+  if (gref == null) {
+    return <g></g>;
+  }
+  d3.select(gref.current)
+    .attr("transform", "translate(" + 0 + "," + charth + ")")
+    .style("fill", "balck")
+    .call(d3.axisBottom(xScale))
+    .selectAll("text")
+    .style("text-anchor", "end")
+    .style("fill", "black")
+    .attr("dx", "-.8em")
+    .attr("dy", ".15em")
+    .attr("transform", "rotate(-65)");
+
+  return (
+    <g>
+      {/* x軸 */}
+      <g id="Xaxis" ref={gref}></g>
+      {/* y軸 */}
+      <g>
+        <line x1={chartx} x2={chartx} y1={charty} y2={charth} stroke="black" />
+        {/* y軸目盛 */}
+        <g>
+          <g>
+            <line
+              x1={chartx}
+              x2={chartw}
+              y1={yScale(0)}
+              y2={yScale(0)}
+              stroke="black"
+            ></line>
+          </g>
+          {yTicks.map((yTick) => {
+            return (
+              <g key={yTick}>
+                <line
+                  x1={chartx - 10}
+                  x2={chartx}
+                  y1={yScale(yTick)}
+                  y2={yScale(yTick)}
+                  stroke="black"
+                ></line>
+                <text
+                  fontSize="12"
+                  dominantBaseline="middle"
+                  textAnchor="end"
+                  x={chartx - 20}
+                  y={yScale(yTick)}
+                >
+                  {yTick}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </g>
+    </g>
+  );
+}
+
+function DrawHistogram(props) {
+  const { bindata, diffdata, chartsize } = props;
+  console.log(diffdata);
+  const { chartx, charty, chartw, charth } = chartsize;
+  const binWidth = (chartw - chartx) / bindata.length;
+  const binmax = Math.max(...bindata);
+  return (
+    <g>
+      <HistgramAxis
+        bindata={bindata}
+        diffdata={diffdata}
+        chartsize={chartsize}
+      />
+      {bindata.map((value, index) => {
+        const binHeight = ((charth - charty) * value) / binmax;
+        return (
+          <g key={index}>
+            <text>{value}</text>
+            <rect
+              id="bin"
+              x={chartx + binWidth * index}
+              y={charth - binHeight}
+              width={binWidth}
+              height="0"
+              fill="gray"
+              stroke="black"
+              strokeWidth="1"
+            >
+              <animate
+                id={`${index}draw`}
+                attributeName="y"
+                begin="startButton2.click"
+                dur="0.5s"
+                from={charth}
+                to={charth - binHeight}
+              />
+              <animate
+                id={`${index}draw`}
+                attributeName="height"
+                begin="startButton2.click"
+                dur="0.5s"
+                fill="freeze"
+                from={0}
+                to={binHeight}
+              />
+            </rect>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function App() {
+  const [CountGame, setCountGame] = useState(100);
+  const CountGameRef = useRef(100); //G数
   const [Flags, setFlags] = useState([...Array(CountGame)]); //フラグ
-  const settingcount = 6; //設定は6段階
   const [Setteing, setSetting] = useState(1); //設定
   const [Replay_P, setReplay_P] = useState(7.3); //リプレイ確率
   const ExistiongGrapes_P = [5.92, 5.84, 5.84, 5.84, 5.76, 5.76]; //設定ごとのブドウ確率
@@ -37,7 +192,8 @@ export default function App() {
   var grapecount = 0;
   var cherrycount = 0;
 
-  const Diff_N = Flags.map((value) => {
+  //1ゲームの差枚を計算する関数
+  const onegame = (value) => {
     if (1 / Replay_P > value) {
     } else if (1 / Replay_P + 1 / Grapes_P > value) {
       grapecount++;
@@ -97,14 +253,40 @@ export default function App() {
       number -= 3;
     }
     return number;
-  });
+  };
 
-  const width = 600,
-    height = 500;
+  //ゲーム数分の乱数配列を作成
+  const creatFlag = () => {
+    const newFlag = [0];
+    for (let i = 0; i < CountGameRef.current.value; i++) {
+      newFlag.push(Math.random());
+    }
+    return newFlag;
+  };
+
+  const [Diff_N, setDiff_N] = useState([0]);
+
+  const creatDiff_N = () => {
+    number = 0;
+    return creatFlag().map((value) => onegame(value));
+  };
+
+  const [CountTry, setCountTry] = useState([...Array(100)]); //試行回数＝CoumtTryの要素数
+
+  const difference_calc = () => {
+    return creatDiff_N()[CountGameRef.current.value];
+  };
+
+  const [difference, setdifference] = useState([1]);
+
+  const width = 700,
+    height = 600;
   const chartx = width / 8,
     charty = height / 6,
     chartw = width - 30,
-    charth = height - 50;
+    charth = height - 100;
+
+  const chartsize = { chartx, charty, chartw, charth };
 
   const xScale = d3
     .scaleLinear()
@@ -121,7 +303,7 @@ export default function App() {
   const xTicks = xScale.ticks();
   const yTicks = yScale.ticks();
 
-  const AllTime = 1;
+  const AllTime = 2;
   const OneTime = AllTime / CountGame;
 
   const P_text = (x) => {
@@ -132,15 +314,24 @@ export default function App() {
     }
   };
 
+  const creatBins = (data) => {
+    const datamax = Math.max(...data);
+    const datamin = Math.min(...data);
+    const numbins = 30;
+    let bins = new Array(numbins + 1);
+    bins.fill(0);
+    for (let i = 0; i < data.length; i++) {
+      let j = ((data[i] - datamin) * numbins) / (datamax - datamin);
+      bins[Math.trunc(j)] += 1;
+    }
+    return bins;
+  };
+
+  const [bins, setbins] = useState([1]);
+
   return (
     <div>
-      <header className="hero is-dark is-blod">
-        <div className="hero-body">
-          <div className="container">
-            <h1 className="title">juggler simulate</h1>
-          </div>
-        </div>
-      </header>
+      <Header />
       <main>
         <section className="section">
           <div>
@@ -149,7 +340,7 @@ export default function App() {
               <div className="field has-addons">
                 {/* リプレ確率 */}
                 <div>
-                  <label>Replay_P</label>
+                  <label>リプレイ確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -162,7 +353,7 @@ export default function App() {
                 </div>
                 {/* ブドウ確率 */}
                 <div>
-                  <label>Grapes_P</label>
+                  <label>ブドウ確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -176,7 +367,7 @@ export default function App() {
 
                 {/* チェリー確率 */}
                 <div>
-                  <label>CherryProbability</label>
+                  <label>チェリー確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -191,7 +382,7 @@ export default function App() {
               <div className="field has-addons">
                 {/* 単独BIG確率 */}
                 <div>
-                  <label>Alone_BIG_Probability</label>
+                  <label>単独BIG確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -205,7 +396,7 @@ export default function App() {
 
                 {/* 単独REG確率 */}
                 <div>
-                  <label>Alone_REG_Probability</label>
+                  <label>単独REG確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -220,7 +411,7 @@ export default function App() {
               <div className="field has-addons">
                 {/* チェリーBIG確率 */}
                 <div>
-                  <label>Cherry_BIG_Probability</label>
+                  <label>チェリー重複BIG確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -234,7 +425,7 @@ export default function App() {
 
                 {/* チェリーREG確率 */}
                 <div>
-                  <label>Cherry_REG_Probability</label>
+                  <label>チェリー重複REG確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -248,7 +439,7 @@ export default function App() {
 
                 {/* 単独チェリ－BIG確率 */}
                 <div>
-                  <label>Alone_Cherry_BIG_Probability</label>
+                  <label>単独チェリーBIG確率</label>
                   <input
                     className="input is-small"
                     type="number"
@@ -262,7 +453,7 @@ export default function App() {
               </div>
               {/* 設定 */}
               <div className="field">
-                <label className="label">setting</label>
+                <label className="label">設定</label>
                 <select
                   className="select is-large"
                   name="setting"
@@ -303,13 +494,13 @@ export default function App() {
                 <div className="field has-addons">
                   <div>
                     {/* G数選択 */}
-                    <label className="label">Count Game</label>
+                    <label className="label">ゲーム数</label>
                     <input
                       className="input is-large"
                       ref={CountGameRef}
                       type="number"
                       name="Count Game"
-                      defaultValue="10"
+                      defaultValue="100"
                     ></input>
                   </div>
                 </div>
@@ -340,13 +531,10 @@ export default function App() {
                 fillOpacity="0.2"
                 stroke="black"
                 strokeWidth="1"
-                onClick={(event) => {
-                  const newFlag = [0];
-                  for (let i = 0; i < CountGameRef.current.value; i++) {
-                    newFlag.push(Math.random());
-                  }
-                  setFlags(newFlag);
+                onClick={() => {
                   setCountGame(CountGameRef.current.value);
+                  setDiff_N(creatDiff_N());
+                  //
                 }}
               />
             </g>
@@ -384,7 +572,6 @@ export default function App() {
                 })}
               </g>
             </g>
-
             {/* y軸 */}
             <g>
               <line
@@ -396,6 +583,15 @@ export default function App() {
               />
               {/* y軸目盛 */}
               <g>
+                <g>
+                  <line
+                    x1={chartx}
+                    x2={chartw}
+                    y1={yScale(0)}
+                    y2={yScale(0)}
+                    stroke="black"
+                  ></line>
+                </g>
                 {yTicks.map((yTick) => {
                   return (
                     <g key={yTick}>
@@ -420,10 +616,8 @@ export default function App() {
                 })}
               </g>
             </g>
-
             {/* コンテンツ */}
             <g>
-              {console.log(Diff_N)}
               {Diff_N.map((value, index) => {
                 if (index === 0) {
                   return (
@@ -497,11 +691,11 @@ export default function App() {
             <table align="center" className="table is-striped ">
               <thead align="center">
                 <tr>
-                  <td>BONUS</td>
-                  <td>BB</td>
-                  <td>RB</td>
-                  <td>grape</td>
-                  <td>cherry</td>
+                  <td>ボーナス</td>
+                  <td>ビック</td>
+                  <td>レギュラー</td>
+                  <td>ブドウ</td>
+                  <td>チェリー</td>
                 </tr>
                 <tr>
                   <td> {`${BBcount + RBcount}`}</td>
@@ -520,6 +714,64 @@ export default function App() {
               </thead>
             </table>
           </div>
+          {/* ヒストグラム */}
+          <div className="field has-addons">
+            {/* 試行回数 */}
+            <div>
+              <label className="label">試行回数</label>
+              <input
+                className="input is-large"
+                type="number"
+                name="Count Try"
+                defaultValue="100"
+                onChange={(event) => {
+                  setCountTry([...Array(Number(event.target.value))]);
+                }}
+              ></input>
+            </div>
+          </div>
+          {/* チャート */}
+          <svg width={width} height={height}>
+            {/* スタートボタン */}
+            <g>
+              <text
+                x="140"
+                y="52.5"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="button"
+              >
+                start
+              </text>
+              <rect
+                className="button"
+                id="startButton2"
+                x="100"
+                y="30"
+                rx="5"
+                height="25"
+                width="80"
+                fill="black"
+                fillOpacity="0.2"
+                stroke="black"
+                strokeWidth="1"
+                onClick={() => {
+                  const result = CountTry.map(() => {
+                    return difference_calc();
+                  });
+                  setdifference(result);
+                  setbins(creatBins(result));
+                }}
+              />
+            </g>
+            <g>
+              <DrawHistogram
+                bindata={bins}
+                diffdata={difference}
+                chartsize={chartsize}
+              />
+            </g>
+          </svg>
         </section>
       </main>
       <footer className="footer">
@@ -530,3 +782,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;
